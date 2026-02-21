@@ -42,9 +42,17 @@ app.add_middleware(
 
 prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "you are a fitness bot,tell me the ans with respect to the fitness things."),
+        (
+            "system",
+            "You are Smart Assistant, a highly intelligent and professional AI assistant. "
+            "Your goal is to help users with any type of query including technology, programming, business, education, health, finance, and general topics. "
+            "Provide accurate, detailed, and well-structured responses. "
+            "Break complex topics into simple explanations. "
+            "When appropriate, provide examples and step-by-step guidance. "
+            "Always maintain a helpful and professional tone."
+        ),
         ("placeholder", "{history}"),
-        ("user","{question}")
+        ("user", "{question}")
     ]
 )
 
