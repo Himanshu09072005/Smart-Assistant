@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fitness AI Assistant</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #container {
+            width: 400px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px gray;
+            padding: 15px;
+        }
+
+        #chatbox {
+            height: 400px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        #userInput {
+            width: 75%;
+            padding: 10px;
+        }
+
+        button {
+            width: 20%;
+            padding: 10px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<div id="container">
+
+<h2>Fitness AI Assistant</h2>
+
+<div id="chatbox"></div>
+
+<input type="text" id="userInput" placeholder="Type your message...">
+<button onclick="sendMessage()">Send</button>
+
+</div>
+
+<script>
+
+async function sendMessage() {
+
+    let inputField = document.getElementById("userInput");
+    let message = inputField.value;
+
+    if(message === "") return;
+
+    let chatbox = document.getElementById("chatbox");
+
+    chatbox.innerHTML += "<p><b>You:</b> " + message + "</p>";
+
+    inputField.value = "";
+
+    const response = await fetch("/chat", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            user_id: "default_user",
+            question: message
+        })
+    });
+
+    const data = await response.json();
+
+    chatbox.innerHTML += "<p><b>Bot:</b> " + data.response + "</p>";
+
+    chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+</script>
+
+</body>
+</html>

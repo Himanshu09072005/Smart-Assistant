@@ -9,6 +9,9 @@ from langchain_core.messages import HumanMessage, AIMessage
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
@@ -23,6 +26,7 @@ db = client["CHATBOT"]
 collection = db["users"]
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 class ChatRequest(BaseModel):
     user_id : str
@@ -66,9 +70,9 @@ def load_history(user_id):
 
     return messages
 
-@app.get("/")
-def home():
-    return {"message": "Welcome to the Fitness Specialist Chatbot API!"}
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/chat")
 def chat(request : ChatRequest):
