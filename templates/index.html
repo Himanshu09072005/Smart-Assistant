@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Fitness AI Assistant</title>
+    <title>Smart AI Assistant</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 
     <style>
         body {
@@ -14,7 +19,7 @@
         }
 
         #container {
-            width: 400px;
+            width: 450px;
             background: white;
             border-radius: 10px;
             box-shadow: 0 0 10px gray;
@@ -22,68 +27,130 @@
         }
 
         #chatbox {
-            height: 400px;
-            overflow-y: scroll;
+            height: 450px;
+            overflow-y: auto;
             border: 1px solid #ddd;
             padding: 10px;
             margin-bottom: 10px;
         }
 
+        .user-message {
+            background-color: #e3f2fd;
+            padding: 8px;
+            margin: 5px;
+            border-radius: 5px;
+        }
+
+        .bot-message {
+            background-color: #f1f1f1;
+            padding: 8px;
+            margin: 5px;
+            border-radius: 5px;
+        }
+
+        #inputArea {
+            display: flex;
+            gap: 5px;
+        }
+
         #userInput {
-            width: 75%;
+            flex: 1;
             padding: 10px;
         }
 
         button {
-            width: 20%;
             padding: 10px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #ddd;
+        }
+
+        .loading {
+            color: gray;
+            font-style: italic;
         }
     </style>
-
 </head>
 
 <body>
 
 <div id="container">
 
-<h2>Study AI Assistant</h2>
+<h2>Smart AI Assistant</h2>
 
 <div id="chatbox"></div>
 
-<input type="text" id="userInput" placeholder="Type your message...">
-<button onclick="sendMessage()">Send</button>
+<div id="inputArea">
+    <input type="text" id="userInput" placeholder="Type your message..." onkeypress="handleKey(event)">
+    <button onclick="sendMessage()">Send</button>
+</div>
 
 </div>
 
 <script>
 
+function handleKey(event) {
+    if (event.key === "Enter") {
+        sendMessage();
+    }
+}
+
 async function sendMessage() {
 
-    let inputField = document.getElementById("userInput");
-    let message = inputField.value;
+    const inputField = document.getElementById("userInput");
+    const message = inputField.value.trim();
 
-    if(message === "") return;
+    if (message === "") return;
 
-    let chatbox = document.getElementById("chatbox");
+    const chatbox = document.getElementById("chatbox");
 
-    chatbox.innerHTML += "<p><b>You:</b> " + message + "</p>";
+    chatbox.innerHTML += `
+        <div class="user-message">
+            <b>You:</b> ${message}
+        </div>
+    `;
 
     inputField.value = "";
 
-    const response = await fetch("/chat", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            user_id: "default_user",
-            question: message
-        })
-    });
+    const loadingId = "loading-" + Date.now();
+    chatbox.innerHTML += `
+        <div class="bot-message loading" id="${loadingId}">
+            Smart Assistant is typing...
+        </div>
+    `;
 
-    const data = await response.json();
+    chatbox.scrollTop = chatbox.scrollHeight;
 
-    chatbox.innerHTML += "<p><b>Bot:</b> " + data.response + "</p>";
+    try {
+
+        const response = await fetch("/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: "default_user",
+                question: message
+            })
+        });
+
+        const data = await response.json();
+
+        document.getElementById(loadingId).innerHTML = `
+            <b>Smart Assistant:</b><br>
+            ${marked.parse(data.response)}
+        `;
+
+        Prism.highlightAll();
+
+    } catch (error) {
+
+        document.getElementById(loadingId).innerHTML =
+            "<b>Error:</b> Could not connect to server.";
+
+    }
 
     chatbox.scrollTop = chatbox.scrollHeight;
 }
