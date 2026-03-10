@@ -9,6 +9,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from pydantic import BaseModel
 
@@ -42,6 +44,8 @@ db = client["CHATBOT"]
 collection = db["users"]
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
 
@@ -112,18 +116,28 @@ Your goal is to behave like a production-level AI assistant similar to ChatGPT."
 llm = ChatGroq(
     api_key=groq_api_key,
     model="llama-3.3-70b-versatile",
-    temperature=0.3
+    temperature=0.3,
+    max_retries=2
 )
 
 chain = prompt | llm
+
+
+# Limit conversation history
+MAX_HISTORY = 6
+
 
 def load_history(user_id):
 
     messages = []
 
-    chats = collection.find(
-        {"user_id": user_id}
-    ).sort("timestamp", 1)
+    chats = list(
+        collection.find({"user_id": user_id})
+        .sort("timestamp", 1)
+    )
+
+    # keep only recent messages
+    chats = chats[-MAX_HISTORY * 2:]
 
     for chat in chats:
 
@@ -146,37 +160,50 @@ def chat(request: ChatRequest):
 
     try:
 
-        if not request.question.strip():
+        question = request.question.strip()
+
+        if not question:
             return {"response": "Please enter a valid question."}
+
+        if len(question) > 1000:
+            return {"response": "Your question is too long. Please shorten it."}
 
         history = load_history(request.user_id)
 
         ist = pytz.timezone("Asia/Kolkata")
+
         current_time = datetime.now(ist).strftime(
             "%A, %d %B %Y, %I:%M %p IST"
         )
 
         response = chain.invoke({
             "history": history,
-            "question": request.question,
+            "question": question,
             "current_time": current_time
         })
 
+        reply = response.content.strip()
+
+        if not reply or len(reply) < 3:
+            reply = "⚠️ I couldn't generate a proper answer. Please try again."
+
+        # save user message
         collection.insert_one({
             "user_id": request.user_id,
             "role": "user",
-            "message": request.question,
+            "message": question,
             "timestamp": datetime.now(UTC)
         })
 
+        # save assistant response
         collection.insert_one({
             "user_id": request.user_id,
             "role": "assistant",
-            "message": response.content,
+            "message": reply,
             "timestamp": datetime.now(UTC)
         })
 
-        return {"response": response.content}
+        return {"response": reply}
 
     except Exception as e:
 
