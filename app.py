@@ -150,9 +150,9 @@ def load_history(user_id):
     return messages
 
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+@app.get("/service-worker.js")
+async def service_worker():
+    return FileResponse("static/service-worker.js", media_type="application/javascript")
 
 
 @app.post("/chat")

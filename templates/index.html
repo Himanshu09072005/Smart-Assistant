@@ -1,79 +1,91 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Smart AI Assistant</title>
+<title>Smart AI Assistant</title>
 
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#0b1220">
-    <style>
-        body {
-            font-family: Arial;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0b1220">
 
-        #container {
-            width: 450px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 0 10px gray;
-            padding: 15px;
-        }
+<style>
+body{
+font-family: Arial;
+background-color:#f0f2f5;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
 
-        #chatbox {
-            height: 450px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
+#container{
+width:450px;
+background:white;
+border-radius:10px;
+box-shadow:0 0 10px gray;
+padding:15px;
+}
 
-        .user-message {
-            background-color: #e3f2fd;
-            padding: 8px;
-            margin: 5px;
-            border-radius: 5px;
-        }
+#chatbox{
+height:450px;
+overflow-y:auto;
+border:1px solid #ddd;
+padding:10px;
+margin-bottom:10px;
+}
 
-        .bot-message {
-            background-color: #f1f1f1;
-            padding: 8px;
-            margin: 5px;
-            border-radius: 5px;
-        }
+.user-message{
+background:#e3f2fd;
+padding:8px;
+margin:5px;
+border-radius:5px;
+}
 
-        #inputArea {
-            display: flex;
-            gap: 5px;
-        }
+.bot-message{
+background:#f1f1f1;
+padding:8px;
+margin:5px;
+border-radius:5px;
+}
 
-        #userInput {
-            flex: 1;
-            padding: 10px;
-        }
+#inputArea{
+display:flex;
+gap:5px;
+}
 
-        button {
-            padding: 10px;
-            cursor: pointer;
-        }
+#userInput{
+flex:1;
+padding:10px;
+}
 
-        button:hover {
-            background-color: #ddd;
-        }
+button{
+padding:10px;
+cursor:pointer;
+}
 
-        .loading {
-            color: gray;
-            font-style: italic;
-        }
-    </style>
+button:hover{
+background:#ddd;
+}
+
+.loading{
+color:gray;
+font-style:italic;
+}
+
+#installBtn{
+display:none;
+margin-bottom:10px;
+width:100%;
+background:#4CAF50;
+color:white;
+border:none;
+border-radius:5px;
+}
+</style>
+
 </head>
 
 <body>
@@ -82,86 +94,110 @@
 
 <h2>Smart AI Assistant</h2>
 
+<button id="installBtn">Install App</button>
+
 <div id="chatbox"></div>
 
 <div id="inputArea">
-    <input type="text" id="userInput" placeholder="Type your message..." onkeypress="handleKey(event)">
-    <button onclick="sendMessage()">Send</button>
+<input type="text" id="userInput" placeholder="Type your message..." onkeypress="handleKey(event)">
+<button onclick="sendMessage()">Send</button>
 </div>
 
 </div>
 
 <script>
 
-function handleKey(event) {
-    if (event.key === "Enter") {
-        sendMessage();
-    }
+function handleKey(event){
+if(event.key==="Enter"){
+sendMessage();
+}
 }
 
-async function sendMessage() {
+async function sendMessage(){
 
-    const inputField = document.getElementById("userInput");
-    const message = inputField.value.trim();
+const inputField=document.getElementById("userInput");
+const message=inputField.value.trim();
 
-    if (message === "") return;
+if(message==="") return;
 
-    const chatbox = document.getElementById("chatbox");
+const chatbox=document.getElementById("chatbox");
 
-    chatbox.innerHTML += `
-        <div class="user-message">
-            <b>You:</b> ${message}
-        </div>
-    `;
+chatbox.innerHTML+=`
+<div class="user-message">
+<b>You:</b> ${message}
+</div>
+`;
 
-    inputField.value = "";
+inputField.value="";
 
-    const loadingId = "loading-" + Date.now();
-    chatbox.innerHTML += `
-        <div class="bot-message loading" id="${loadingId}">
-            Smart Assistant is typing...
-        </div>
-    `;
+const loadingId="loading-"+Date.now();
 
-    chatbox.scrollTop = chatbox.scrollHeight;
+chatbox.innerHTML+=`
+<div class="bot-message loading" id="${loadingId}">
+Smart Assistant is typing...
+</div>
+`;
 
-    try {
+chatbox.scrollTop=chatbox.scrollHeight;
 
-        const response = await fetch("/chat", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                user_id: "default_user",
-                question: message
-            })
-        });
+try{
 
-        const data = await response.json();
+const response=await fetch("/chat",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+user_id:"default_user",
+question:message
+})
+});
 
-        document.getElementById(loadingId).innerHTML = `
-            <b>Smart Assistant:</b><br>
-            ${marked.parse(data.response)}
-        `;
+const data=await response.json();
 
-        Prism.highlightAll();
+document.getElementById(loadingId).innerHTML=`
+<b>Smart Assistant:</b><br>
+${marked.parse(data.response)}
+`;
 
-    } catch (error) {
+Prism.highlightAll();
 
-        document.getElementById(loadingId).innerHTML =
-            "<b>Error:</b> Could not connect to server.";
+}catch(error){
 
-    }
+document.getElementById(loadingId).innerHTML=
+"<b>Error:</b> Could not connect to server.";
 
-    chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+chatbox.scrollTop=chatbox.scrollHeight;
 }
 
 </script>
+
 <script>
-if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/static/service-worker.js");
+if("serviceWorker" in navigator){
+navigator.serviceWorker.register("/static/service-worker.js");
 }
 </script>
+
+<script>
+let deferredPrompt;
+
+window.addEventListener("beforeinstallprompt",(e)=>{
+e.preventDefault();
+deferredPrompt=e;
+
+const installBtn=document.getElementById("installBtn");
+installBtn.style.display="block";
+
+installBtn.addEventListener("click",async()=>{
+installBtn.style.display="none";
+deferredPrompt.prompt();
+await deferredPrompt.userChoice;
+deferredPrompt=null;
+});
+});
+</script>
+
 </body>
 </html>
