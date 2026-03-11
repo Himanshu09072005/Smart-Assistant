@@ -57,6 +57,17 @@ app.add_middleware(
     allow_credentials=True
 )
 
+# Homepage route (loads chatbot UI)
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+# Health check route (optional but recommended)
+@app.get("/health")
+def health():
+    return {"status": "running"}
+
 class ChatRequest(BaseModel):
     user_id: str
     question: str
@@ -150,9 +161,7 @@ def load_history(user_id):
     return messages
 
 
-@app.get("/service-worker.js")
-async def service_worker():
-    return FileResponse("static/service-worker.js", media_type="application/javascript")
+
 
 
 @app.post("/chat")
