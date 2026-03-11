@@ -1,16 +1,14 @@
 import os
 import certifi
 import pytz
+import uuid
 
 from dotenv import load_dotenv
 from datetime import datetime, UTC
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 from pydantic import BaseModel
 
@@ -26,98 +24,41 @@ load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
 mongo_uri = os.getenv("MONGODB_URI")
 
-if not groq_api_key:
-    raise ValueError("GROQ_API_KEY is missing in .env file")
-
-if not mongo_uri:
-    raise ValueError("MONGODB_URI is missing in .env file")
-
-
 client = MongoClient(
     mongo_uri,
     tls=True,
-    tlsCAFile=certifi.where(),
-    serverSelectionTimeoutMS=5000
+    tlsCAFile=certifi.where()
 )
 
 db = client["CHATBOT"]
-collection = db["users"]
+collection = db["messages"]
+
 
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-templates = Jinja2Templates(directory="templates")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
-    allow_headers=["*"],
-    allow_credentials=True
+    allow_headers=["*"]
 )
 
-# Homepage route (loads chatbot UI)
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-
-# Health check route (optional but recommended)
-@app.get("/health")
-def health():
-    return {"status": "running"}
 
 class ChatRequest(BaseModel):
     user_id: str
+    conversation_id: str
     question: str
+
+
+class NewChat(BaseModel):
+    user_id: str
 
 
 prompt = ChatPromptTemplate.from_messages(
     [
-        (
-            "system",
-            """You are Smart Assistant, a highly intelligent, professional, and helpful AI assistant with persistent memory.
-
-Current date and time: {current_time}
-
-IMPORTANT:
-- You MUST use this current date and time when answering questions about today's date, day, or time.
-- India follows IST (Asia/Kolkata) unless otherwise specified.
-
-CORE BEHAVIOR:
-- Answer any type of question: programming, business, studies, health, finance, productivity, or general knowledge.
-- Use conversation history to maintain context and continuity.
-- Provide clear, structured, and practical responses.
-- Be professional, intelligent, and helpful.
-
-SPECIAL INSTRUCTIONS:
-- If user asks coding question, provide working code example.
-- If user asks plan, provide step-by-step plan.
-- If user asks explanation, explain simply first, then deeply.
-- If user asks comparison, provide structured comparison.
-- If user asks for advice, provide actionable steps.
-
-MEMORY USAGE RULES:
-- Use previous conversation history when relevant.
-- Maintain conversation continuity naturally.
-- Do NOT repeat unnecessary information.
-
-RESPONSE QUALITY RULES:
-- Give direct answers first.
-- Structure responses using headings, bullet points, or steps.
-- Be concise but informative.
-- Avoid unnecessary clarifying questions.
-
-PERSONALITY:
-- Professional
-- Intelligent
-- Helpful
-- Calm
-- Confident
-
-Your goal is to behave like a production-level AI assistant similar to ChatGPT."""
-        ),
+        ("system", "You are a helpful AI assistant."),
         ("placeholder", "{history}"),
         ("user", "{question}")
     ]
@@ -126,98 +67,103 @@ Your goal is to behave like a production-level AI assistant similar to ChatGPT."
 
 llm = ChatGroq(
     api_key=groq_api_key,
-    model="llama-3.3-70b-versatile",
-    temperature=0.3,
-    max_retries=2
+    model="llama-3.3-70b-versatile"
 )
 
 chain = prompt | llm
 
 
-# Limit conversation history
-MAX_HISTORY = 6
-
-
-def load_history(user_id):
-
-    messages = []
+def load_history(user_id, conversation_id):
 
     chats = list(
-        collection.find({"user_id": user_id})
-        .sort("timestamp", 1)
+        collection.find({
+            "user_id": user_id,
+            "conversation_id": conversation_id
+        }).sort("timestamp", 1)
     )
 
-    # keep only recent messages
-    chats = chats[-MAX_HISTORY * 2:]
+    history = []
 
     for chat in chats:
 
         if chat["role"] == "user":
-            messages.append(HumanMessage(content=chat["message"]))
+            history.append(HumanMessage(content=chat["message"]))
 
-        elif chat["role"] == "assistant":
-            messages.append(AIMessage(content=chat["message"]))
+        if chat["role"] == "assistant":
+            history.append(AIMessage(content=chat["message"]))
 
-    return messages
-
-
-
+    return history
 
 
 @app.post("/chat")
-def chat(request: ChatRequest):
 
-    try:
+def chat(req: ChatRequest):
 
-        question = request.question.strip()
+    history = load_history(req.user_id, req.conversation_id)
 
-        if not question:
-            return {"response": "Please enter a valid question."}
+    response = chain.invoke({
+        "history": history,
+        "question": req.question
+    })
 
-        if len(question) > 1000:
-            return {"response": "Your question is too long. Please shorten it."}
+    reply = response.content
 
-        history = load_history(request.user_id)
+    collection.insert_one({
+        "user_id": req.user_id,
+        "conversation_id": req.conversation_id,
+        "role": "user",
+        "message": req.question,
+        "timestamp": datetime.now(UTC)
+    })
 
-        ist = pytz.timezone("Asia/Kolkata")
+    collection.insert_one({
+        "user_id": req.user_id,
+        "conversation_id": req.conversation_id,
+        "role": "assistant",
+        "message": reply,
+        "timestamp": datetime.now(UTC)
+    })
 
-        current_time = datetime.now(ist).strftime(
-            "%A, %d %B %Y, %I:%M %p IST"
-        )
+    return {"response": reply}
 
-        response = chain.invoke({
-            "history": history,
-            "question": question,
-            "current_time": current_time
+
+@app.post("/new_chat")
+
+def new_chat(req: NewChat):
+
+    conversation_id = str(uuid.uuid4())
+
+    return {"conversation_id": conversation_id}
+
+
+@app.get("/chat_list/{user_id}")
+
+def chat_list(user_id: str):
+
+    chats = collection.distinct(
+        "conversation_id",
+        {"user_id": user_id}
+    )
+
+    return {"chats": chats}
+
+
+@app.get("/chat_history/{conversation_id}")
+
+def chat_history(conversation_id: str):
+
+    chats = list(
+        collection.find({"conversation_id": conversation_id})
+        .sort("timestamp", 1)
+    )
+
+    result = []
+
+    for chat in chats:
+
+        result.append({
+            "role": chat["role"],
+            "message": chat["message"]
         })
 
-        reply = response.content.strip()
-
-        if not reply or len(reply) < 3:
-            reply = "⚠️ I couldn't generate a proper answer. Please try again."
-
-        # save user message
-        collection.insert_one({
-            "user_id": request.user_id,
-            "role": "user",
-            "message": question,
-            "timestamp": datetime.now(UTC)
-        })
-
-        # save assistant response
-        collection.insert_one({
-            "user_id": request.user_id,
-            "role": "assistant",
-            "message": reply,
-            "timestamp": datetime.now(UTC)
-        })
-
-        return {"response": reply}
-
-    except Exception as e:
-
-        print("ERROR:", e)
-
-        return {
-            "response": "Sorry, something went wrong. Please try again."
-        }
+    return {"history": result}
