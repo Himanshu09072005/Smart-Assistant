@@ -1,3 +1,4 @@
+
 import os
 import certifi
 import pytz
@@ -6,8 +7,10 @@ import uuid
 from dotenv import load_dotenv
 from datetime import datetime, UTC
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 from pydantic import BaseModel
@@ -24,10 +27,12 @@ load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
 mongo_uri = os.getenv("MONGODB_URI")
 
+
 client = MongoClient(
     mongo_uri,
     tls=True,
-    tlsCAFile=certifi.where()
+    tlsCAFile=certifi.where(),
+    serverSelectionTimeoutMS=5000
 )
 
 db = client["CHATBOT"]
@@ -35,6 +40,8 @@ collection = db["messages"]
 
 
 app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -46,6 +53,8 @@ app.add_middleware(
 )
 
 
+# ---------- MODELS ----------
+
 class ChatRequest(BaseModel):
     user_id: str
     conversation_id: str
@@ -56,22 +65,33 @@ class NewChat(BaseModel):
     user_id: str
 
 
+# ---------- AI SETUP ----------
+
 prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a helpful AI assistant."),
+        ("system", "You are Smart Assistant, a helpful AI assistant."),
         ("placeholder", "{history}"),
         ("user", "{question}")
     ]
 )
 
-
 llm = ChatGroq(
     api_key=groq_api_key,
-    model="llama-3.3-70b-versatile"
+    model="llama-3.3-70b-versatile",
+    temperature=0.3
 )
 
 chain = prompt | llm
 
+
+# ---------- HOME PAGE ----------
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+# ---------- LOAD HISTORY ----------
 
 def load_history(user_id, conversation_id):
 
@@ -89,14 +109,15 @@ def load_history(user_id, conversation_id):
         if chat["role"] == "user":
             history.append(HumanMessage(content=chat["message"]))
 
-        if chat["role"] == "assistant":
+        elif chat["role"] == "assistant":
             history.append(AIMessage(content=chat["message"]))
 
     return history
 
 
-@app.post("/chat")
+# ---------- CHAT ENDPOINT ----------
 
+@app.post("/chat")
 def chat(req: ChatRequest):
 
     history = load_history(req.user_id, req.conversation_id)
@@ -106,8 +127,12 @@ def chat(req: ChatRequest):
         "question": req.question
     })
 
-    reply = response.content
+    reply = response.content.strip()
 
+    if not reply:
+        reply = "Sorry, I couldn't generate a response."
+
+    # save user message
     collection.insert_one({
         "user_id": req.user_id,
         "conversation_id": req.conversation_id,
@@ -116,6 +141,7 @@ def chat(req: ChatRequest):
         "timestamp": datetime.now(UTC)
     })
 
+    # save assistant response
     collection.insert_one({
         "user_id": req.user_id,
         "conversation_id": req.conversation_id,
@@ -127,8 +153,9 @@ def chat(req: ChatRequest):
     return {"response": reply}
 
 
-@app.post("/new_chat")
+# ---------- CREATE NEW CHAT ----------
 
+@app.post("/new_chat")
 def new_chat(req: NewChat):
 
     conversation_id = str(uuid.uuid4())
@@ -136,8 +163,9 @@ def new_chat(req: NewChat):
     return {"conversation_id": conversation_id}
 
 
-@app.get("/chat_list/{user_id}")
+# ---------- GET CHAT LIST ----------
 
+@app.get("/chat_list/{user_id}")
 def chat_list(user_id: str):
 
     chats = collection.distinct(
@@ -148,8 +176,9 @@ def chat_list(user_id: str):
     return {"chats": chats}
 
 
-@app.get("/chat_history/{conversation_id}")
+# ---------- GET CHAT HISTORY ----------
 
+@app.get("/chat_history/{conversation_id}")
 def chat_history(conversation_id: str):
 
     chats = list(
