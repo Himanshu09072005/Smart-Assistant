@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html>
 
@@ -25,8 +26,6 @@ height:100vh;
 display:flex;
 color:white;
 }
-
-/* sidebar */
 
 #sidebar{
 width:240px;
@@ -88,6 +87,10 @@ color:white;
 cursor:pointer;
 }
 
+button:hover{
+background:#1d4ed8;
+}
+
 </style>
 
 </head>
@@ -122,6 +125,8 @@ cursor:pointer;
 
 <script>
 
+/* ---------- VOICE INPUT ---------- */
+
 let recognition
 
 function startVoice(){
@@ -139,10 +144,6 @@ recognition.lang="en-US"
 recognition.continuous=false
 recognition.interimResults=false
 
-recognition.onstart=function(){
-console.log("Voice listening...")
-}
-
 recognition.onresult=function(event){
 
 const transcript=event.results[0][0].transcript
@@ -151,13 +152,28 @@ document.getElementById("userInput").value=transcript
 
 }
 
-recognition.onerror=function(e){
-console.log(e)
-}
-
 recognition.start()
 
 }
+
+/* ---------- VOICE OUTPUT ---------- */
+
+function speak(text){
+
+if(!window.speechSynthesis) return
+
+const speech=new SpeechSynthesisUtterance()
+
+speech.text=text
+speech.lang="en-US"
+speech.rate=1
+speech.pitch=1
+
+speechSynthesis.speak(speech)
+
+}
+
+/* ---------- SEND MESSAGE ---------- */
 
 function handleKey(e){
 
@@ -188,6 +204,8 @@ Assistant typing...
 </div>
 `
 
+chatbox.scrollTop=chatbox.scrollHeight
+
 try{
 
 const res=await fetch("/chat",{
@@ -203,10 +221,16 @@ question:message
 
 const data=await res.json()
 
+const reply=data.response
+
 document.getElementById(loadingId).innerHTML=
-"<b>Assistant:</b><br>"+marked.parse(data.response)
+"<b>Assistant:</b><br>"+marked.parse(reply)
 
 Prism.highlightAll()
+
+/* AI SPEAKS */
+
+speak(reply)
 
 }catch{
 
@@ -216,11 +240,15 @@ document.getElementById(loadingId).innerHTML="Server error"
 
 }
 
+/* ---------- CLEAR CHAT ---------- */
+
 function clearChat(){
 
 document.getElementById("chatbox").innerHTML=""
 
 }
+
+/* ---------- SERVICE WORKER ---------- */
 
 if("serviceWorker" in navigator){
 
@@ -232,3 +260,4 @@ navigator.serviceWorker.register("/static/service-worker.js")
 
 </body>
 </html>
+```
