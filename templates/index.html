@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html>
 
@@ -9,7 +9,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#0b1220">
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
@@ -25,12 +24,6 @@ background:linear-gradient(135deg,#0f172a,#1e293b);
 height:100vh;
 display:flex;
 color:white;
-}
-
-#sidebar{
-width:240px;
-background:#020617;
-padding:20px;
 }
 
 #main{
@@ -65,6 +58,12 @@ border-radius:10px;
 max-width:70%;
 }
 
+.voiceButtons{
+margin-top:6px;
+display:flex;
+gap:6px;
+}
+
 #inputArea{
 display:flex;
 gap:8px;
@@ -79,7 +78,7 @@ border:none;
 }
 
 button{
-padding:10px;
+padding:6px 10px;
 border:none;
 border-radius:6px;
 background:#2563eb;
@@ -91,41 +90,15 @@ button:hover{
 background:#1d4ed8;
 }
 
-#voiceControls{
-margin-bottom:10px;
-display:flex;
-gap:8px;
-}
-
 </style>
 
 </head>
 
 <body>
 
-<div id="sidebar">
-
-<h3>Smart Assistant</h3>
-
-<button onclick="clearChat()">New Chat</button>
-
-</div>
-
 <div id="main">
 
-<h2>AI Assistant</h2>
-
-<div id="voiceControls">
-
-<button onclick="toggleVoice()">🔊 Voice ON</button>
-
-<button onclick="pauseVoice()">⏸ Pause</button>
-
-<button onclick="resumeVoice()">▶ Resume</button>
-
-<button onclick="stopVoice()">⏹ Stop</button>
-
-</div>
+<h2>Smart AI Assistant</h2>
 
 <div id="chatbox"></div>
 
@@ -143,49 +116,16 @@ gap:8px;
 
 <script>
 
-/* -------- VOICE SETTINGS -------- */
-
-let voiceEnabled=true
+/* -------- VOICE ENGINE -------- */
 
 let speechInstance=null
 
-function toggleVoice(){
-
-voiceEnabled=!voiceEnabled
-
-event.target.innerText=voiceEnabled?"🔊 Voice ON":"🔇 Voice OFF"
-
-}
-
-function pauseVoice(){
-
-speechSynthesis.pause()
-
-}
-
-function resumeVoice(){
-
-speechSynthesis.resume()
-
-}
-
-function stopVoice(){
-
-speechSynthesis.cancel()
-
-}
-
-/* -------- VOICE OUTPUT -------- */
-
 function speak(text){
 
-if(!voiceEnabled) return
-
 speechSynthesis.cancel()
 
-speechInstance=new SpeechSynthesisUtterance()
+speechInstance=new SpeechSynthesisUtterance(text)
 
-speechInstance.text=text
 speechInstance.lang="en-US"
 speechInstance.rate=1
 
@@ -193,20 +133,28 @@ speechSynthesis.speak(speechInstance)
 
 }
 
-/* -------- VOICE INPUT -------- */
+function pauseVoice(){
+speechSynthesis.pause()
+}
 
-let recognition
+function resumeVoice(){
+speechSynthesis.resume()
+}
+
+function stopVoice(){
+speechSynthesis.cancel()
+}
+
+/* -------- VOICE INPUT -------- */
 
 function startVoice(){
 
 if(!('webkitSpeechRecognition' in window)){
-
-alert("Voice input not supported")
+alert("Voice not supported")
 return
-
 }
 
-recognition=new webkitSpeechRecognition()
+let recognition=new webkitSpeechRecognition()
 
 recognition.lang="en-US"
 
@@ -224,14 +172,12 @@ recognition.start()
 /* -------- SEND MESSAGE -------- */
 
 function handleKey(e){
-
 if(e.key==="Enter") sendMessage()
-
 }
 
 async function sendMessage(){
 
-speechSynthesis.cancel()
+stopVoice()
 
 const input=document.getElementById("userInput")
 
@@ -274,12 +220,26 @@ const data=await res.json()
 
 const reply=data.response
 
-document.getElementById(loadingId).innerHTML=
-"<b>Assistant:</b><br>"+marked.parse(reply)
+document.getElementById(loadingId).innerHTML=`
+
+<b>Assistant:</b><br>
+${marked.parse(reply)}
+
+<div class="voiceButtons">
+
+<button onclick="speak(\`${reply}\`)">🔊 Listen</button>
+
+<button onclick="pauseVoice()">⏸ Pause</button>
+
+<button onclick="resumeVoice()">▶ Resume</button>
+
+<button onclick="stopVoice()">⏹ Stop</button>
+
+</div>
+
+`
 
 Prism.highlightAll()
-
-speak(reply)
 
 }catch{
 
@@ -288,16 +248,6 @@ document.getElementById(loadingId).innerHTML="Server error"
 }
 
 }
-
-/* -------- CLEAR CHAT -------- */
-
-function clearChat(){
-
-document.getElementById("chatbox").innerHTML=""
-
-}
-
-/* -------- SERVICE WORKER -------- */
 
 if("serviceWorker" in navigator){
 
@@ -309,3 +259,4 @@ navigator.serviceWorker.register("/static/service-worker.js")
 
 </body>
 </html>
+```
