@@ -8,6 +8,11 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+
 <style>
 
 body{
@@ -19,8 +24,10 @@ background:#0f172a;
 color:white;
 }
 
+/* sidebar */
+
 #sidebar{
-width:250px;
+width:260px;
 background:#020617;
 padding:20px;
 overflow:auto;
@@ -33,6 +40,8 @@ background:#1e293b;
 cursor:pointer;
 border-radius:6px;
 }
+
+/* main */
 
 #main{
 flex:1;
@@ -51,20 +60,30 @@ border-radius:8px;
 
 .user{
 background:#2563eb;
-padding:8px;
+padding:10px;
 margin:6px;
-border-radius:6px;
+border-radius:8px;
 max-width:70%;
 margin-left:auto;
 }
 
 .bot{
 background:#334155;
-padding:8px;
+padding:10px;
 margin:6px;
-border-radius:6px;
+border-radius:8px;
 max-width:70%;
 }
+
+/* voice buttons */
+
+.voiceButtons{
+margin-top:6px;
+display:flex;
+gap:6px;
+}
+
+/* input */
 
 #inputArea{
 display:flex;
@@ -80,12 +99,16 @@ border:none;
 }
 
 button{
-padding:10px;
+padding:8px;
 border:none;
 background:#2563eb;
 color:white;
 border-radius:6px;
 cursor:pointer;
+}
+
+button:hover{
+background:#1d4ed8;
 }
 
 </style>
@@ -114,6 +137,8 @@ cursor:pointer;
 
 <input id="userInput" placeholder="Ask anything..." onkeypress="handleKey(event)">
 
+<button onclick="startVoice()">🎤</button>
+
 <button onclick="sendMessage()">Send</button>
 
 </div>
@@ -122,10 +147,65 @@ cursor:pointer;
 
 <script>
 
+/* ---------- USER ---------- */
+
 const user_id="default_user"
 
 let conversation_id=null
 
+/* ---------- VOICE ENGINE ---------- */
+
+let speechInstance=null
+
+function speak(text){
+
+speechSynthesis.cancel()
+
+speechInstance=new SpeechSynthesisUtterance(text)
+
+speechInstance.lang="en-US"
+
+speechSynthesis.speak(speechInstance)
+
+}
+
+function pauseVoice(){
+speechSynthesis.pause()
+}
+
+function resumeVoice(){
+speechSynthesis.resume()
+}
+
+function stopVoice(){
+speechSynthesis.cancel()
+}
+
+/* ---------- VOICE INPUT ---------- */
+
+function startVoice(){
+
+if(!('webkitSpeechRecognition' in window)){
+alert("Voice input not supported")
+return
+}
+
+let recognition=new webkitSpeechRecognition()
+
+recognition.lang="en-US"
+
+recognition.onresult=function(event){
+
+document.getElementById("userInput").value=
+event.results[0][0].transcript
+
+}
+
+recognition.start()
+
+}
+
+/* ---------- CHAT SYSTEM ---------- */
 
 async function createChat(){
 
@@ -145,6 +225,7 @@ loadChats()
 
 }
 
+/* ---------- LOAD CHAT LIST ---------- */
 
 async function loadChats(){
 
@@ -170,6 +251,7 @@ list.appendChild(div)
 
 }
 
+/* ---------- LOAD CHAT HISTORY ---------- */
 
 async function loadHistory(id){
 
@@ -185,13 +267,28 @@ box.innerHTML=""
 
 data.history.forEach(msg=>{
 
-if(msg.role=="user"){
+if(msg.role==="user"){
 
 box.innerHTML+=`<div class="user">${msg.message}</div>`
 
 }else{
 
-box.innerHTML+=`<div class="bot">${msg.message}</div>`
+box.innerHTML+=`
+<div class="bot">
+
+${marked.parse(msg.message)}
+
+<div class="voiceButtons">
+
+<button onclick="speak(\`${msg.message}\`)">🔊</button>
+<button onclick="pauseVoice()">⏸</button>
+<button onclick="resumeVoice()">▶</button>
+<button onclick="stopVoice()">⏹</button>
+
+</div>
+
+</div>
+`
 
 }
 
@@ -199,6 +296,7 @@ box.innerHTML+=`<div class="bot">${msg.message}</div>`
 
 }
 
+/* ---------- SEND MESSAGE ---------- */
 
 function handleKey(e){
 
@@ -206,8 +304,9 @@ if(e.key==="Enter") sendMessage()
 
 }
 
-
 async function sendMessage(){
+
+stopVoice()
 
 if(!conversation_id){
 
@@ -242,17 +341,40 @@ question:message
 
 const data=await res.json()
 
-box.innerHTML+=`<div class="bot">${data.response}</div>`
+box.innerHTML+=`
+
+<div class="bot">
+
+${marked.parse(data.response)}
+
+<div class="voiceButtons">
+
+<button onclick="speak(\`${data.response}\`)">🔊</button>
+<button onclick="pauseVoice()">⏸</button>
+<button onclick="resumeVoice()">▶</button>
+<button onclick="stopVoice()">⏹</button>
+
+</div>
+
+</div>
+
+`
+
+Prism.highlightAll()
 
 box.scrollTop=box.scrollHeight
 
 }
 
+/* ---------- INIT ---------- */
 
 loadChats()
+
+if("serviceWorker" in navigator){
+navigator.serviceWorker.register("/static/service-worker.js")
+}
 
 </script>
 
 </body>
-
 </html>
