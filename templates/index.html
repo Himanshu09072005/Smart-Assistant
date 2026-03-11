@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 
@@ -90,6 +91,12 @@ button:hover{
 background:#1d4ed8;
 }
 
+#voiceControls{
+margin-bottom:10px;
+display:flex;
+gap:8px;
+}
+
 </style>
 
 </head>
@@ -108,6 +115,18 @@ background:#1d4ed8;
 
 <h2>AI Assistant</h2>
 
+<div id="voiceControls">
+
+<button onclick="toggleVoice()">🔊 Voice ON</button>
+
+<button onclick="pauseVoice()">⏸ Pause</button>
+
+<button onclick="resumeVoice()">▶ Resume</button>
+
+<button onclick="stopVoice()">⏹ Stop</button>
+
+</div>
+
 <div id="chatbox"></div>
 
 <div id="inputArea">
@@ -124,7 +143,57 @@ background:#1d4ed8;
 
 <script>
 
-/* ---------- VOICE INPUT ---------- */
+/* -------- VOICE SETTINGS -------- */
+
+let voiceEnabled=true
+
+let speechInstance=null
+
+function toggleVoice(){
+
+voiceEnabled=!voiceEnabled
+
+event.target.innerText=voiceEnabled?"🔊 Voice ON":"🔇 Voice OFF"
+
+}
+
+function pauseVoice(){
+
+speechSynthesis.pause()
+
+}
+
+function resumeVoice(){
+
+speechSynthesis.resume()
+
+}
+
+function stopVoice(){
+
+speechSynthesis.cancel()
+
+}
+
+/* -------- VOICE OUTPUT -------- */
+
+function speak(text){
+
+if(!voiceEnabled) return
+
+speechSynthesis.cancel()
+
+speechInstance=new SpeechSynthesisUtterance()
+
+speechInstance.text=text
+speechInstance.lang="en-US"
+speechInstance.rate=1
+
+speechSynthesis.speak(speechInstance)
+
+}
+
+/* -------- VOICE INPUT -------- */
 
 let recognition
 
@@ -132,22 +201,19 @@ function startVoice(){
 
 if(!('webkitSpeechRecognition' in window)){
 
-alert("Voice input not supported in this browser")
+alert("Voice input not supported")
 return
 
 }
 
-recognition = new webkitSpeechRecognition()
+recognition=new webkitSpeechRecognition()
 
 recognition.lang="en-US"
-recognition.continuous=false
-recognition.interimResults=false
 
 recognition.onresult=function(event){
 
-const transcript=event.results[0][0].transcript
-
-document.getElementById("userInput").value=transcript
+document.getElementById("userInput").value=
+event.results[0][0].transcript
 
 }
 
@@ -155,24 +221,7 @@ recognition.start()
 
 }
 
-/* ---------- VOICE OUTPUT ---------- */
-
-function speak(text){
-
-if(!window.speechSynthesis) return
-
-const speech=new SpeechSynthesisUtterance()
-
-speech.text=text
-speech.lang="en-US"
-speech.rate=1
-speech.pitch=1
-
-speechSynthesis.speak(speech)
-
-}
-
-/* ---------- SEND MESSAGE ---------- */
+/* -------- SEND MESSAGE -------- */
 
 function handleKey(e){
 
@@ -182,7 +231,10 @@ if(e.key==="Enter") sendMessage()
 
 async function sendMessage(){
 
+speechSynthesis.cancel()
+
 const input=document.getElementById("userInput")
+
 const message=input.value.trim()
 
 if(!message) return
@@ -227,8 +279,6 @@ document.getElementById(loadingId).innerHTML=
 
 Prism.highlightAll()
 
-/* AI SPEAKS */
-
 speak(reply)
 
 }catch{
@@ -239,7 +289,7 @@ document.getElementById(loadingId).innerHTML="Server error"
 
 }
 
-/* ---------- CLEAR CHAT ---------- */
+/* -------- CLEAR CHAT -------- */
 
 function clearChat(){
 
@@ -247,7 +297,7 @@ document.getElementById("chatbox").innerHTML=""
 
 }
 
-/* ---------- SERVICE WORKER ---------- */
+/* -------- SERVICE WORKER -------- */
 
 if("serviceWorker" in navigator){
 
@@ -259,4 +309,3 @@ navigator.serviceWorker.register("/static/service-worker.js")
 
 </body>
 </html>
-
