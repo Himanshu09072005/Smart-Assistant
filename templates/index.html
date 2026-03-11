@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html>
 
@@ -18,66 +17,22 @@
 
 <style>
 
-/* -------- GLOBAL -------- */
-
 body{
 margin:0;
-font-family:'Segoe UI',sans-serif;
+font-family:Segoe UI;
 background:linear-gradient(135deg,#0f172a,#1e293b);
 height:100vh;
 display:flex;
 color:white;
 }
 
-/* -------- SPLASH -------- */
-
-#splash{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:#020617;
-display:flex;
-flex-direction:column;
-justify-content:center;
-align-items:center;
-z-index:9999;
-}
-
-#splash h1{
-font-size:32px;
-margin-bottom:10px;
-}
-
-/* -------- SIDEBAR -------- */
+/* sidebar */
 
 #sidebar{
-width:260px;
-background:rgba(15,23,42,0.85);
-backdrop-filter:blur(15px);
+width:240px;
+background:#020617;
 padding:20px;
-display:flex;
-flex-direction:column;
 }
-
-#sidebar h2{
-margin-top:0;
-}
-
-.chat-item{
-padding:8px;
-border-radius:6px;
-cursor:pointer;
-margin-bottom:5px;
-background:rgba(255,255,255,0.05);
-}
-
-.chat-item:hover{
-background:rgba(255,255,255,0.15);
-}
-
-/* -------- MAIN -------- */
 
 #main{
 flex:1;
@@ -86,23 +41,13 @@ flex-direction:column;
 padding:20px;
 }
 
-header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-}
-
 #chatbox{
 flex:1;
-overflow-y:auto;
-padding:10px;
-margin-top:10px;
-border-radius:10px;
+overflow:auto;
 background:rgba(255,255,255,0.05);
-backdrop-filter:blur(10px);
+padding:10px;
+border-radius:10px;
 }
-
-/* -------- MESSAGES -------- */
 
 .user-message{
 background:#2563eb;
@@ -121,8 +66,6 @@ border-radius:10px;
 max-width:70%;
 }
 
-/* -------- INPUT -------- */
-
 #inputArea{
 display:flex;
 gap:8px;
@@ -134,57 +77,15 @@ flex:1;
 padding:12px;
 border-radius:6px;
 border:none;
-outline:none;
 }
 
 button{
-padding:10px 14px;
+padding:10px;
 border:none;
 border-radius:6px;
 background:#2563eb;
 color:white;
 cursor:pointer;
-}
-
-button:hover{
-background:#1d4ed8;
-}
-
-/* -------- INSTALL BUTTON -------- */
-
-#installBtn{
-display:none;
-background:#16a34a;
-}
-
-/* -------- TYPING -------- */
-
-.typing span{
-animation:blink 1.4s infinite both;
-}
-
-.typing span:nth-child(2){animation-delay:.2s}
-.typing span:nth-child(3){animation-delay:.4s}
-
-@keyframes blink{
-0%{opacity:0}
-50%{opacity:1}
-100%{opacity:0}
-}
-
-/* -------- LIGHT THEME -------- */
-
-.light{
-background:#f1f5f9;
-color:black;
-}
-
-.light #sidebar{
-background:#e2e8f0;
-}
-
-.light #chatbox{
-background:#f8fafc;
 }
 
 </style>
@@ -193,41 +94,25 @@ background:#f8fafc;
 
 <body>
 
-<div id="splash">
-<h1>Smart AI Assistant</h1>
-<p>Loading intelligent assistant...</p>
-</div>
-
 <div id="sidebar">
 
-<h2>Chats</h2>
+<h3>Smart Assistant</h3>
 
-<button onclick="newChat()">New Chat</button>
-
-<div id="chatHistory"></div>
+<button onclick="clearChat()">New Chat</button>
 
 </div>
 
 <div id="main">
 
-<header>
-
-<h2>Smart Assistant</h2>
-
-<div>
-<button onclick="toggleTheme()">Theme</button>
-<button id="installBtn">Install</button>
-</div>
-
-</header>
+<h2>AI Assistant</h2>
 
 <div id="chatbox"></div>
 
 <div id="inputArea">
 
-<input type="text" id="userInput" placeholder="Ask anything..." onkeypress="handleKey(event)">
+<input id="userInput" placeholder="Ask anything..." onkeypress="handleKey(event)">
 
-<button onclick="voiceInput()">🎤</button>
+<button onclick="startVoice()">🎤</button>
 
 <button onclick="sendMessage()">Send</button>
 
@@ -237,90 +122,48 @@ background:#f8fafc;
 
 <script>
 
-/* splash */
+let recognition
 
-window.addEventListener("load",()=>{
-setTimeout(()=>{
-document.getElementById("splash").style.display="none"
-},1500)
-})
+function startVoice(){
 
-/* enter */
+if(!('webkitSpeechRecognition' in window)){
 
-function handleKey(e){
-if(e.key==="Enter") sendMessage()
-}
-
-/* chats */
-
-let chats={}
-let currentChat="chat1"
-
-function newChat(){
-
-currentChat="chat"+Date.now()
-chats[currentChat]=[]
-
-renderHistory()
-document.getElementById("chatbox").innerHTML=""
+alert("Voice input not supported in this browser")
+return
 
 }
 
-/* sidebar */
-
-function renderHistory(){
-
-const history=document.getElementById("chatHistory")
-history.innerHTML=""
-
-Object.keys(chats).forEach(id=>{
-
-const div=document.createElement("div")
-div.className="chat-item"
-div.innerText=id
-div.onclick=()=>loadChat(id)
-
-history.appendChild(div)
-
-})
-
-}
-
-function loadChat(id){
-
-currentChat=id
-const chatbox=document.getElementById("chatbox")
-chatbox.innerHTML=""
-
-chats[id].forEach(m=>{
-chatbox.innerHTML+=m
-})
-
-}
-
-/* theme */
-
-function toggleTheme(){
-document.body.classList.toggle("light")
-}
-
-/* voice input */
-
-function voiceInput(){
-
-const recognition=new(window.SpeechRecognition||window.webkitSpeechRecognition)()
+recognition = new webkitSpeechRecognition()
 
 recognition.lang="en-US"
+recognition.continuous=false
+recognition.interimResults=false
 
-recognition.onresult=(e)=>{
-document.getElementById("userInput").value=e.results[0][0].transcript
+recognition.onstart=function(){
+console.log("Voice listening...")
+}
+
+recognition.onresult=function(event){
+
+const transcript=event.results[0][0].transcript
+
+document.getElementById("userInput").value=transcript
+
+}
+
+recognition.onerror=function(e){
+console.log(e)
 }
 
 recognition.start()
 
 }
 
-/* send message */
+function handleKey(e){
+
+if(e.key==="Enter") sendMessage()
+
+}
 
 async function sendMessage(){
 
@@ -331,12 +174,9 @@ if(!message) return
 
 const chatbox=document.getElementById("chatbox")
 
-const userHTML=`<div class="user-message"><b>You:</b> ${message}</div>`
-
-chatbox.innerHTML+=userHTML
-
-chats[currentChat]=chats[currentChat]||[]
-chats[currentChat].push(userHTML)
+chatbox.innerHTML+=`
+<div class="user-message"><b>You:</b> ${message}</div>
+`
 
 input.value=""
 
@@ -344,27 +184,29 @@ const loadingId="l"+Date.now()
 
 chatbox.innerHTML+=`
 <div class="bot-message" id="${loadingId}">
-Assistant typing
-<span class="typing"><span>.</span><span>.</span><span>.</span></span>
+Assistant typing...
 </div>
 `
-
-chatbox.scrollTop=chatbox.scrollHeight
 
 try{
 
 const res=await fetch("/chat",{
+
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({
 user_id:"default_user",
 question:message
 })
+
 })
 
 const data=await res.json()
 
-streamResponse(loadingId,data.response)
+document.getElementById(loadingId).innerHTML=
+"<b>Assistant:</b><br>"+marked.parse(data.response)
+
+Prism.highlightAll()
 
 }catch{
 
@@ -374,57 +216,19 @@ document.getElementById(loadingId).innerHTML="Server error"
 
 }
 
-/* streaming effect */
+function clearChat(){
 
-function streamResponse(id,text){
-
-const el=document.getElementById(id)
-
-el.innerHTML="<b>Assistant:</b><br>"
-
-let i=0
-
-const interval=setInterval(()=>{
-
-el.innerHTML+=text.charAt(i)
-
-i++
-
-if(i>=text.length){
-clearInterval(interval)
-Prism.highlightAll()
-}
-
-},15)
+document.getElementById("chatbox").innerHTML=""
 
 }
-
-/* service worker */
 
 if("serviceWorker" in navigator){
+
 navigator.serviceWorker.register("/static/service-worker.js")
+
 }
-
-/* PWA install */
-
-let deferredPrompt
-
-window.addEventListener("beforeinstallprompt",e=>{
-e.preventDefault()
-deferredPrompt=e
-
-const btn=document.getElementById("installBtn")
-btn.style.display="inline"
-
-btn.onclick=async()=>{
-btn.style.display="none"
-deferredPrompt.prompt()
-await deferredPrompt.userChoice
-}
-})
 
 </script>
 
 </body>
 </html>
-```
