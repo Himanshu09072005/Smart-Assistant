@@ -120,12 +120,17 @@ def load_history(user_id, conversation_id):
 @app.post("/chat")
 def chat(req: ChatRequest):
 
-    history = load_history(req.user_id, req.conversation_id)
+    history = load_history(req.user_id, req.conversation_id)[-4:]
 
-    response = chain.invoke({
-        "history": history,
-        "question": req.question
+    try:
+        response = chain.invoke({
+            "history": history,
+            "question": req.question
     })
+    except Exception as e:
+        return {"response": f"Error: {str(e)}"}
+
+    
 
     reply = response.content.strip()
 
